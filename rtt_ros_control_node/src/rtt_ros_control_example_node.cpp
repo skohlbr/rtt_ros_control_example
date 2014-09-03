@@ -98,6 +98,11 @@ class RttRosControlExample : public RTT::TaskContext{
       hw_interface_->write();
     }
 
+    void cleanupHook(){
+      non_rt_ros_nh_->shutdown();
+      non_rt_ros_queue_thread_.join();
+    }
+
     void serviceNonRtRosQueue()
     {
       static const double timeout = 0.001;
