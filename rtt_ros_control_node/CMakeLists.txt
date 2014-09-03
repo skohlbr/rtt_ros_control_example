@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   hardware_interface
   roscpp
   rtt_ros
+  rtt_rosclock
   hw_interface_example
 )
 

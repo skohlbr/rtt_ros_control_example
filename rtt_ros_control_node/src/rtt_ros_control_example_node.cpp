@@ -26,10 +26,16 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #include <rtt/TaskContext.hpp>
-
 #include <rtt/Port.hpp>
 #include <rtt/Component.hpp>
+
 #include <ros/ros.h>
+#include <ros/callback_queue.h>
+
+#include <rtt_rosclock/rtt_rosclock.h>
+
+#include <boost/thread.hpp>
+
 #include <hw_interface_example/hw_interface_example.h>
 #include <controller_manager/controller_manager.h>
 
@@ -37,52 +43,68 @@
 using namespace RTT;
 
 class RttRosControlExample : public RTT::TaskContext{
-private:
+  private:
 
-  // The (example) hardware interface
-  boost::shared_ptr<ros_control_example::HwInterfaceExample> hw_interface_;
+    // The (example) hardware interface
+    boost::shared_ptr<ros_control_example::HwInterfaceExample> hw_interface_;
 
-  // The controller manager
-  boost::shared_ptr<controller_manager::ControllerManager> controller_manager_;
+    // The controller manager
+    boost::shared_ptr<controller_manager::ControllerManager> controller_manager_;
 
-  // For saving last update time, so period can be handed to controller manager
-  ros::Time last_update_time_;
+    // For saving last update time, so period can be handed to controller manager
+    ros::Time last_update_time_;
+
+    // Necessary components to run thread for serving ROS callbacks
+    boost::thread non_rt_ros_queue_thread_;
+    ros::NodeHandle non_rt_ros_nh_;
+    ros::CallbackQueue non_rt_ros_queue_;
 
 
-public:
-  RttRosControlExample(const std::string& name):
-    TaskContext(name)
-  {
-  }
+  public:
+    RttRosControlExample(const std::string& name):
+      TaskContext(name)
+    {}
 
-  ~RttRosControlExample(){}
+    ~RttRosControlExample()
+    {}
 
-private:
+  private:
 
-  bool configureHook(){
+    bool configureHook(){
 
-    // @TODO: What´s the proper way of initializing ROS node?
+      // @TODO: What´s the proper way of initializing ROS node?
 
-    ros::NodeHandle nh;
+      non_rt_ros_nh_ = ros::NodeHandle("");
+      non_rt_ros_nh_.setCallbackQueue(&non_rt_ros_queue_);
+      this->non_rt_ros_queue_thread_ = boost::thread( boost::bind( &RttRosControlExample::serviceNonRtRosQueue,this ) );
 
-    hw_interface_.reset(new ros_control_example::HwInterfaceExample);
+      hw_interface_.reset(new ros_control_example::HwInterfaceExample);
 
-    controller_manager_.reset(new controller_manager::ControllerManager(hw_interface_.get(), nh));
-  }
+      controller_manager_.reset(new controller_manager::ControllerManager(hw_interface_.get(), non_rt_ros_nh_));
+    }
 
-  void updateHook(){
+    void updateHook(){
 
-    // Get current time and period since last update @TODO: Have to consider real-time clock
-    // issues here?
-    ros::Time now (ros::Time::now());
-    ros::Duration period = now - last_update_time_;
-    last_update_time_ = now;
+      // Get current time
+      ros::Time now (rtt_rosclock::host_now());
 
-    hw_interface_->read();
-    controller_manager_->update(now, period);
-    hw_interface_->write();
+      //@TODO: Should use monotonic clock for computation of period
+      ros::Duration period = now - last_update_time_;
+      last_update_time_ = now;
 
-  }
+      hw_interface_->read();
+      controller_manager_->update(now, period);
+      hw_interface_->write();
+    }
+
+    void serviceNonRtRosQueue()
+    {
+      static const double timeout = 0.001;
+
+      while (this->non_rt_ros_nh_.ok()){
+        this->non_rt_ros_queue_.callAvailable(ros::WallDuration(timeout));
+      }
+    }
 
 };
 ORO_CREATE_COMPONENT(RttRosControlExample)
