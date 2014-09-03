@@ -23,6 +23,7 @@
   <run_depend>hardware_interface</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>rtt</run_depend>
+  <run_depend>rtt_rosnode</run_depend>
   <run_depend>rtt_ros</run_depend>
   <run_depend>rtt_rosclock</run_depend>
   <run_depend>hw_interface_example</run_depend>
@@ -30,10 +31,6 @@
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
-    <!-- You can specify that this package is a metapackage here: -->
-    <!-- <metapackage/> -->
-
-    <!-- Other tools can request additional information be placed here -->
-
+    <plugin_depend>rtt_rosnode</plugin_depend>
   </export>
 </package>

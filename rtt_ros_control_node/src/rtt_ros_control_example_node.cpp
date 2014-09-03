@@ -56,9 +56,8 @@ class RttRosControlExample : public RTT::TaskContext{
 
     // Necessary components to run thread for serving ROS callbacks
     boost::thread non_rt_ros_queue_thread_;
-    ros::NodeHandle non_rt_ros_nh_;
+    boost::shared_ptr<ros::NodeHandle> non_rt_ros_nh_;
     ros::CallbackQueue non_rt_ros_queue_;
-
 
   public:
     RttRosControlExample(const std::string& name):
@@ -72,15 +71,13 @@ class RttRosControlExample : public RTT::TaskContext{
 
     bool configureHook(){
 
-      // @TODO: What´s the proper way of initializing ROS node?
-
-      non_rt_ros_nh_ = ros::NodeHandle("");
-      non_rt_ros_nh_.setCallbackQueue(&non_rt_ros_queue_);
+      non_rt_ros_nh_.reset(new ros::NodeHandle(""));
+      non_rt_ros_nh_->setCallbackQueue(&non_rt_ros_queue_);
       this->non_rt_ros_queue_thread_ = boost::thread( boost::bind( &RttRosControlExample::serviceNonRtRosQueue,this ) );
 
       hw_interface_.reset(new ros_control_example::HwInterfaceExample);
 
-      controller_manager_.reset(new controller_manager::ControllerManager(hw_interface_.get(), non_rt_ros_nh_));
+      controller_manager_.reset(new controller_manager::ControllerManager(hw_interface_.get(), *non_rt_ros_nh_));
     }
 
     void updateHook(){
@@ -101,7 +98,7 @@ class RttRosControlExample : public RTT::TaskContext{
     {
       static const double timeout = 0.001;
 
-      while (this->non_rt_ros_nh_.ok()){
+      while (this->non_rt_ros_nh_->ok()){
         this->non_rt_ros_queue_.callAvailable(ros::WallDuration(timeout));
       }
     }
