@@ -78,16 +78,20 @@ class RttRosControlExample : public RTT::TaskContext{
       hw_interface_.reset(new ros_control_example::HwInterfaceExample);
 
       controller_manager_.reset(new controller_manager::ControllerManager(hw_interface_.get(), *non_rt_ros_nh_));
+
+      last_update_time_ = rtt_rosclock::rtt_now();
     }
 
     void updateHook(){
 
-      // Get current time
+      // Get current system time (for timestamps of ROS messages)
       ros::Time now (rtt_rosclock::host_now());
 
-      //@TODO: Should use monotonic clock for computation of period
-      ros::Duration period = now - last_update_time_;
-      last_update_time_ = now;
+      // Get guaranteed monotonic time for period computation
+      ros::Time now_monotonic(rtt_rosclock::rtt_now());
+
+      ros::Duration period (now_monotonic - last_update_time_);
+      last_update_time_ = now_monotonic;
 
       hw_interface_->read();
       controller_manager_->update(now, period);
