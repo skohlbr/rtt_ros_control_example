@@ -45,6 +45,11 @@ using namespace RTT;
 class RttRosControlExample : public RTT::TaskContext{
   private:
 
+    // Necessary components to run thread for serving ROS callbacks
+    boost::thread non_rt_ros_queue_thread_;
+    boost::shared_ptr<ros::NodeHandle> non_rt_ros_nh_;
+    ros::CallbackQueue non_rt_ros_queue_;
+
     // The (example) hardware interface
     boost::shared_ptr<ros_control_example::HwInterfaceExample> hw_interface_;
 
@@ -53,11 +58,6 @@ class RttRosControlExample : public RTT::TaskContext{
 
     // For saving last update time, so period can be handed to controller manager
     ros::Time last_update_time_;
-
-    // Necessary components to run thread for serving ROS callbacks
-    boost::thread non_rt_ros_queue_thread_;
-    boost::shared_ptr<ros::NodeHandle> non_rt_ros_nh_;
-    ros::CallbackQueue non_rt_ros_queue_;
 
   public:
     RttRosControlExample(const std::string& name):
